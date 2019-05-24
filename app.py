@@ -3,8 +3,8 @@ import os
 from flask import Flask, url_for, redirect, render_template, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, \
-    UserMixin, RoleMixin, login_required, current_user
-from flask_security.utils import encrypt_password
+    UserMixin, RoleMixin, current_user
+from flask_security.utils import hash_password
 import flask_admin
 from flask_admin.contrib import sqla
 from flask_admin import helpers as admin_helpers
@@ -76,14 +76,13 @@ class MyModelView(sqla.ModelView):
             else:
                 # login
                 return redirect(url_for('security.login', next=request.url))
-
-
-    # can_edit = True
+    # can edit = True
     edit_modal = True
     create_modal = True    
     can_export = True
     can_view_details = True
     details_modal = True
+
 
 class UserView(MyModelView):
     column_editable_list = ['email', 'first_name', 'last_name']
@@ -104,6 +103,7 @@ class CustomView(BaseView):
 def index():
     return render_template('index.html')
 
+
 # Create admin
 admin = flask_admin.Admin(
     app,
@@ -115,7 +115,8 @@ admin = flask_admin.Admin(
 # Add model views
 admin.add_view(MyModelView(Role, db.session, menu_icon_type='fa', menu_icon_value='fa-server', name="Roles"))
 admin.add_view(UserView(User, db.session, menu_icon_type='fa', menu_icon_value='fa-users', name="Users"))
-admin.add_view(CustomView(name="Custom view", endpoint='custom', menu_icon_type='fa', menu_icon_value='fa-connectdevelop',))
+admin.add_view(CustomView(name="Custom view", endpoint='custom', menu_icon_type='fa',
+                          menu_icon_value='fa-connectdevelop',))
 
 # define a context processor for merging flask-admin's template context into the
 # flask-security views.
@@ -127,6 +128,7 @@ def security_context_processor():
         h=admin_helpers,
         get_url=url_for
     )
+
 
 def build_sample_db():
     """
@@ -149,7 +151,7 @@ def build_sample_db():
         test_user = user_datastore.create_user(
             first_name='Admin',
             email='admin',
-            password=encrypt_password('admin'),
+            password=hash_password('admin'),
             roles=[user_role, super_user_role]
         )
 
@@ -171,11 +173,12 @@ def build_sample_db():
                 first_name=first_names[i],
                 last_name=last_names[i],
                 email=tmp_email,
-                password=encrypt_password(tmp_pass),
+                password=hash_password(tmp_pass),
                 roles=[user_role, ]
             )
         db.session.commit()
     return
+
 
 if __name__ == '__main__':
 
