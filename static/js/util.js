@@ -68,3 +68,44 @@ function drawPoint(point){
   var ctx=c.getContext("2d");
   ctx.fillRect(point[0],point[1],2,2);
 }
+
+show_Weather();
+show_Gas();
+
+function show_Weather() {
+    setInterval(function() {
+        $.ajax({
+            url: '/weather',
+            type: 'GET',
+            success: function(data, textStatus, request) {
+            $("#temp").html(data["main"]["temp"] + "<sup>°F</sup>");
+            $("#weather").html(data["weather"][0]["main"]);
+            var d = new Date();
+            var n = d.getDay();
+            $("#date").html(d.toDateString());
+            $("#wind").html(data["wind"]["speed"] + "km/h");
+            d = new Date(data["sys"]["sunrise"] * 1000);
+            $("#sunrise").html(d.toTimeString());
+            $("#pressure").html(data["main"]["pressure"] + "hPa");
+            $("#weatherIcon").attr("src", "https://openweathermap.org/img/w/" + data["weather"][0]["icon"] + ".png");
+            console.log(data)
+            }
+        });
+			}, 3000);
+
+}
+
+function show_Gas() {
+    $.ajax({
+        url: '/gas',
+        type: 'GET',
+        success: function(data, textStatus, request) {
+            $("#reg").html("Regular: " + data['details']['reg_price']);
+            $("#mid").html("Mid-grade: " + data['details']['mid_price']);
+            $("#pre").html("Premium: " + data['details']['pre_price']);
+            console.log(data);
+        }
+    });
+}
+
+
