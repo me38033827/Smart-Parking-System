@@ -1,5 +1,7 @@
 #!venv/bin/python
 import os
+import urllib.request
+import grovepi
 from flask import Flask, url_for, redirect, render_template, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, \
@@ -102,6 +104,44 @@ class CustomView(BaseView):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+
+# Get Weather Information
+@app.route('/weather')
+def get_weather_api():
+    url = "http://api.openweathermap.org/data/2.5/weather" \
+          "?zip=98467,us&appid=18673bd31365411ca390843bed5b6cba&units=Imperial"
+    response = urllib.request.urlopen(url)
+    status = response.status
+    if status == 200:
+        contents = response.read()
+        contents = contents.decode('utf-8')
+    else:
+        contents = response.status()
+    return app.response_class(contents, content_type='application/json')
+
+
+# Get Temperature Information
+# @app.route('/temperature')
+# def get_temperature():
+#     sensor = 3
+#     try:
+#         [temp, hum] = grovepi.dht(sensor, 0)
+#         if ((math.isnan(temp) == False) and (math.isnan(hum) == False) and (hum >= 0)):
+#             print("Temperature = %.2f Celsius\tHumidity = %.2f% %" % (temp, hum))
+#             add_readings(temp, hum)
+#     except IOError:
+#         print("An error has occured.")
+#
+#     except Exception as e:
+#         print(e)
+#     return 0
+
+
+# Get Gas Price
+@app.route("/gas")
+def get_gas_price():
+    return 0
 
 
 # Create admin
