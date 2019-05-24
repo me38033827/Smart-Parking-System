@@ -1,7 +1,6 @@
 #!venv/bin/python
 import os
 import urllib.request
-import grovepi
 from flask import Flask, url_for, redirect, render_template, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, \
@@ -111,17 +110,15 @@ def index():
 def get_weather_api():
     url = "http://api.openweathermap.org/data/2.5/weather" \
           "?zip=98467,us&appid=18673bd31365411ca390843bed5b6cba&units=Imperial"
-    response = urllib.request.urlopen(url)
-    status = response.status
-    if status == 200:
+    try:
+        response = urllib.request.urlopen(url)
         contents = response.read()
-        contents = contents.decode('utf-8')
-    else:
-        contents = response.status()
-    return app.response_class(contents, content_type='application/json')
+        return app.response_class(contents, content_type='application/json')
+    except Exception as e:
+        contents = e
+        return app.response_class(contents, content_type='application/json', status=404)
 
-
-# Get Temperature Information
+# # Get Temperature Information
 # @app.route('/temperature')
 # def get_temperature():
 #     sensor = 3
@@ -141,7 +138,14 @@ def get_weather_api():
 # Get Gas Price
 @app.route("/gas")
 def get_gas_price():
-    return 0
+    url = "http://devapi.mygasfeed.com/stations/details/103920/rfej9napna.json"
+    try:
+        response = urllib.request.urlopen(url)
+        contents = response.read()
+        return app.response_class(contents, content_type='application/json')
+    except Exception as e:
+        contents = e
+        return app.response_class(contents, content_type='application/json', status=404)
 
 
 # Create admin
