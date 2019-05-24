@@ -10,6 +10,8 @@ import flask_admin
 from flask_admin.contrib import sqla
 from flask_admin import helpers as admin_helpers
 from flask_admin import BaseView, expose
+from multiprocessing import Process
+import time
 
 # Create Flask application
 app = Flask(__name__)
@@ -224,6 +226,15 @@ def build_sample_db():
     return
 
 
+def f():
+    while True:
+        print('while loop')
+        time.sleep(2)
+
+p = Process(target=f)
+p.start()
+
+
 if __name__ == '__main__':
 
     # Build a sample db on the fly, if one does not exist yet.
@@ -231,6 +242,7 @@ if __name__ == '__main__':
     database_path = os.path.join(app_dir, app.config['DATABASE_FILE'])
     if not os.path.exists(database_path):
         build_sample_db()
+
 
     # Start app
     app.run(debug=True)
