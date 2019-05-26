@@ -12,7 +12,7 @@ from flask_admin import helpers as admin_helpers
 from flask_admin import BaseView, expose
 from multiprocessing import Process
 import time
-
+import json
 
 
 
@@ -162,9 +162,10 @@ def get_gas_price():
 # Get Parking Spot Status
 @app.route("/spotStatus")
 def check_spot_status():
-    parked={'status':[3,6,2]}
+    parked={'status':[0,1,1,0,0,1]}
 
-    return app.response_class(str(parked), content_type='application/json')
+
+    return app.response_class(json.dumps(parked,), content_type='application/json')
 
 # Get Car Status
 @app.route("/carStatus")
