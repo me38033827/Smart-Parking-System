@@ -11,6 +11,9 @@ from flask_admin.contrib import sqla
 from flask_admin import helpers as admin_helpers
 from flask_admin import BaseView, expose
 
+
+
+
 # Create Flask application
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -52,6 +55,15 @@ class User(db.Model, UserMixin):
 # Setup Flask-Security
 user_datastore = SQLAlchemyUserDatastore(db, User, Role)
 security = Security(app, user_datastore)
+
+
+
+
+
+
+
+
+
 
 
 # Create customized model view class
@@ -231,6 +243,7 @@ if __name__ == '__main__':
     database_path = os.path.join(app_dir, app.config['DATABASE_FILE'])
     if not os.path.exists(database_path):
         build_sample_db()
+
 
     # Start app
     app.run(debug=True)
