@@ -13,6 +13,9 @@ from flask_admin import BaseView, expose
 from multiprocessing import Process
 import time
 
+
+
+
 # Create Flask application
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -54,6 +57,15 @@ class User(db.Model, UserMixin):
 # Setup Flask-Security
 user_datastore = SQLAlchemyUserDatastore(db, User, Role)
 security = Security(app, user_datastore)
+
+
+
+
+
+
+
+
+
 
 
 # Create customized model view class
