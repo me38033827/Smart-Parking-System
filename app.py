@@ -10,6 +10,8 @@ import flask_admin
 from flask_admin.contrib import sqla
 from flask_admin import helpers as admin_helpers
 from flask_admin import BaseView, expose
+from multiprocessing import Process
+import time
 
 
 
@@ -116,7 +118,6 @@ class CustomView(BaseView):
 def index():
     return render_template('index.html')
 
-
 # Get Weather Information
 @app.route('/weather')
 def get_weather_api():
@@ -146,7 +147,6 @@ def get_weather_api():
 #         print(e)
 #     return 0
 
-
 # Get Gas Price
 @app.route("/gas")
 def get_gas_price():
@@ -158,6 +158,33 @@ def get_gas_price():
     except Exception as e:
         contents = e
         return app.response_class(contents, content_type='application/json', status=404)
+
+# Get Parking Spot Status
+@app.route("/spotStatus")
+def check_spot_status():
+    return 0
+
+# Get Car Status
+@app.route("/carStatus")
+def check_car_status():
+    username = request.values.get("key")
+    
+    return 0
+
+# Get Parking History
+@app.route("/history")
+def get_spot_history():
+    return 0
+
+# Get Parking Spot Usage
+@app.route("/usage")
+def get_spot_usage():
+    return 0
+
+# Get Daily Revenue
+@app.route("/revenue")
+def get_daily_revenue():
+    return 0
 
 
 # Create admin
@@ -234,6 +261,15 @@ def build_sample_db():
             )
         db.session.commit()
     return
+
+
+def f():
+    while True:
+        print('while loop')
+        time.sleep(2)
+
+p = Process(target=f)
+p.start()
 
 
 if __name__ == '__main__':

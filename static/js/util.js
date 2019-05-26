@@ -73,10 +73,11 @@ show_Weather();
 show_Gas();
 
 function show_Weather() {
-    $.ajax({
-        url: '/weather',
-        type: 'GET',
-        success: function(data, textStatus, request) {
+    setInterval(function() {
+        $.ajax({
+            url: '/weather',
+            type: 'GET',
+            success: function(data, textStatus, request) {
             $("#temp").html(data["main"]["temp"] + "<sup>°F</sup>");
             $("#weather").html(data["weather"][0]["main"]);
             var d = new Date();
@@ -88,8 +89,10 @@ function show_Weather() {
             $("#pressure").html(data["main"]["pressure"] + "hPa");
             $("#weatherIcon").attr("src", "https://openweathermap.org/img/w/" + data["weather"][0]["icon"] + ".png");
             console.log(data)
-        }
-    });
+            }
+        });
+			}, 3000);
+
 }
 
 function show_Gas() {
@@ -100,7 +103,9 @@ function show_Gas() {
             $("#reg").html("Regular: " + data['details']['reg_price']);
             $("#mid").html("Mid-grade: " + data['details']['mid_price']);
             $("#pre").html("Premium: " + data['details']['pre_price']);
-            console.log(data)
+            console.log(data);
         }
     });
 }
+
+
