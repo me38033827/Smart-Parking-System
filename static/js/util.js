@@ -109,3 +109,19 @@ function show_Gas() {
 }
 
 
+function show_parked_cars(){
+
+    setInterval(function() {
+        $.ajax({
+            url: '/spotStatus',
+            type: 'GET',
+            success: function(data, textStatus, request) {
+                var lots=data['status']
+                var lot = document.getElementById('parking-lot');
+                for
+
+            }
+        });
+			}, 1000);
+
+}

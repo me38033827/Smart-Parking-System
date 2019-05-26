@@ -150,7 +150,9 @@ def get_gas_price():
 # Get Parking Spot Status
 @app.route("/spotStatus")
 def check_spot_status():
-    return 0
+    parked={'status':[3,6,2]}
+
+    return app.response_class(str(parked), content_type='application/json')
 
 # Get Car Status
 @app.route("/carStatus")
