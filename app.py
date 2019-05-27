@@ -12,7 +12,10 @@ from flask_admin import helpers as admin_helpers
 from flask_admin import BaseView, expose
 from multiprocessing import Process
 import time
+import json
 
+threshold_light = 20
+threshold_ranger = 20
 # Create Flask application
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -24,6 +27,42 @@ roles_users = db.Table(
     'roles_users',
     db.Column('user_id', db.Integer(), db.ForeignKey('user.id')),
     db.Column('role_id', db.Integer(), db.ForeignKey('role.id'))
+)
+
+account = db.Table(
+    'account',
+    db.Column('userid', db.Integer, primary_key=True),
+    db.Column('deposit', db.Column(db.REAL))
+)
+
+record = db.Table(
+    'record',
+    db.Column('id', db.Integer, primary_key=True, unique=True, autoincrement=True),
+    db.Column('spot', db.Integer),
+    db.Column('plate', db.TEXT, unique=True),
+    db.Column('start', db.TEXT),
+    db.Column('end', db.TEXT),
+    db.Column('rate', db.REAL),
+)
+
+vehicle = db.Table(
+    'vehicle',
+    db.Column('plate', db.TEXT, primary_key=True, unique=True),
+    db.Column('userid', db.INTEGER, unique=True),
+    db.Column('status', db.INTEGER),
+    db.Column('spot', db.INTEGER),
+    db.Column('category', db.TEXT),
+    db.Column('color', db.TEXT),
+    db.Column('brand', db.TEXT),
+)
+
+spot = db.Table(
+    'spot',
+    db.Column('spot_id', db.INTEGER, primary_key=True, unique=True),
+    db.Column('status', db.INTEGER),
+    db.Column('start_time', db.TEXT),
+    db.Column('end_time', db.TEXT),
+    db.Column('fee', db.REAL),
 )
 
 
@@ -120,20 +159,19 @@ def get_weather_api():
         return app.response_class(contents, content_type='application/json', status=404)
 
 # # Get Temperature Information
-# @app.route('/temperature')
-# def get_temperature():
-#     sensor = 3
-#     try:
-#         [temp, hum] = grovepi.dht(sensor, 0)
-#         if ((math.isnan(temp) == False) and (math.isnan(hum) == False) and (hum >= 0)):
-#             print("Temperature = %.2f Celsius\tHumidity = %.2f% %" % (temp, hum))
-#             add_readings(temp, hum)
-#     except IOError:
-#         print("An error has occured.")
-#
-#     except Exception as e:
-#         print(e)
-#     return 0
+@app.route('/temperature')
+def get_temperature():
+    sensor = 7
+    try:
+        [temp, hum] = grovepi.dht(sensor, 0)
+        if ((math.isnan(temp) == False) and (math.isnan(hum) == False) and (hum >= 0)):
+            add_readings(temp, hum)
+    except IOError:
+        print("An error has occured.")
+
+    except Exception as e:
+        print(e)
+    return 0
 
 # Get Gas Price
 @app.route("/gas")
@@ -150,19 +188,89 @@ def get_gas_price():
 # Get Parking Spot Status
 @app.route("/spotStatus")
 def check_spot_status():
-    return 0
+    # Connect the Grove Light Sensor to analog port
+    # SIG,NC,VCC,GND
+    light_sensor_spot1 = 1
+
+    # Connect the motion sensor to digital port
+    # SIG,NC,VCC,GND
+    ranger_sensor_spot2 = 5
+    ranger_sensor_spot3 = 6
+
+    # Connect the LED to digital port
+    # SIG,NC,VCC,GND
+    led_spot1 = 1
+    led_spot2 = 2
+    led_spot3 = 3
+    # Turn on LED once sensor exceeds threshold resistance
+    grovepi.pinMode(light_sensor_spot1, "INPUT")
+    grovepi.pinMode(ranger_sensor_spot2, "INPUT")
+    grovepi.pinMode(ranger_sensor_spot3, "INPUT")
+    grovepi.pinMode(led_spot1, "OUTPUT")
+    grovepi.pinMode(led_spot2, "OUTPUT")
+    grovepi.pinMode(led_spot3, "OUTPUT")
+
+    try:
+        # Get sensor value
+        spot1_value_light = grovepi.analogRead(light_sensor_spot1)
+        spot2_value_ranger = ultrasonicRead(ranger_sensor_spot2)
+        spot3_value_ranger = ultrasonicRead(ranger_sensor_spot2)
+        if spot1_value_light < threshold_light:
+            digitalWrite(led_spot1, 1)
+            spot1_status = 1
+        else:
+            digitalWrite(led_spot1, 0)
+            spot1_status = 0
+        if spot2_value_ranger < threshold_ranger:
+            digitalWrite(led_spot2, 1)
+            spot2_status = 1
+        else:
+            digitalWrite(led_spot2, 0)
+            spot2_status = 0
+        if spot3_value_ranger < threshold_ranger:
+            digitalWrite(led_spot3, 1)
+            spot3_status = 1
+        else:
+            digitalWrite(led_spot3, 0)
+            spot3_status = 0
+        status = [spot1_status, spot2_status, spot3_status]
+        contents = {'status': status}
+        return app.response_class(json.dumps(contents), content_type='application/json')
+    except Exception as e:
+        contents = e
+        return app.response_class(contents, content_type='application/json', status=404)
 
 # Get Car Status
 @app.route("/carStatus")
 def check_car_status():
-    username = request.values.get("key")
-    
-    return 0
+    try:
+        user_email = current_user
+        user = db.session.query(User).filter_by(email=user_email)
+        vehicle_information = db.session.query(vehicle).filter_by(userid=user.id)
+        if vehicle_information.status == 1:
+            spot_status = db.session.query(spot).filter_by(spot_id=vehicle_information.spot)
+            contents = {'status': vehicle_information.status, 'start_time': spot_status.start_time,
+                        'fee': spot_status.fee, 'spot_status': spot_status.status}
+            return app.response_class(contents, content_type='application/json')
+        else:
+            contents = {'status': vehicle_information.status}
+            return app.response_class(contents, content_type='application/json')
+    except Exception as e:
+        contents = e
+        return app.response_class(contents, content_type='application/json', status=404)
+
 
 # Get Parking History
 @app.route("/history")
 def get_spot_history():
-    return 0
+    try:
+        user_email = current_user
+        user = db.session.query(User).filter_by(email=user_email)
+        history_record = db.session.query(record).filter_by(id=user.id).all()
+        return 0
+    except Exception as e:
+        contents = e
+        return app.response_class(contents, content_type='application/json', status=404)
 
 # Get Parking Spot Usage
 @app.route("/usage")
@@ -173,6 +281,27 @@ def get_spot_usage():
 @app.route("/revenue")
 def get_daily_revenue():
     return 0
+
+
+def check_entrance_status():
+    # Connect the Grove Light Sensor to analog port
+    # SIG,NC,VCC,GND
+    lightsensorin = 2
+    lightsensorout = 3
+
+
+    grovepi.pinMode(lightsensorin, "INPUT")
+    grovepi.pinMode(lightsensorout, "INPUT")
+    while True:
+        try:
+            # Get sensor value
+            entrance_value = grovepi.analogRead(lightsensorin)
+            exit_value = grovepi.analogRead(lightsensorout)
+
+
+        except Exception as e:
+            contents = e
+            return app.response_class(contents, content_type='application/json', status=404)
 
 
 # Create admin
@@ -201,73 +330,15 @@ def security_context_processor():
     )
 
 
-def build_sample_db():
-    """
-    Populate a small db with some example entries.
-    """
-
-    import string
-    import random
-
-    db.drop_all()
-    db.create_all()
-
-    with app.app_context():
-        user_role = Role(name='user')
-        super_user_role = Role(name='superuser')
-        db.session.add(user_role)
-        db.session.add(super_user_role)
-        db.session.commit()
-
-        test_user = user_datastore.create_user(
-            first_name='Admin',
-            email='admin',
-            password=hash_password('admin'),
-            roles=[user_role, super_user_role]
-        )
-
-        first_names = [
-            'Harry', 'Amelia', 'Oliver', 'Jack', 'Isabella', 'Charlie', 'Sophie', 'Mia',
-            'Jacob', 'Thomas', 'Emily', 'Lily', 'Ava', 'Isla', 'Alfie', 'Olivia', 'Jessica',
-            'Riley', 'William', 'James', 'Geoffrey', 'Lisa', 'Benjamin', 'Stacey', 'Lucy'
-        ]
-        last_names = [
-            'Brown', 'Smith', 'Patel', 'Jones', 'Williams', 'Johnson', 'Taylor', 'Thomas',
-            'Roberts', 'Khan', 'Lewis', 'Jackson', 'Clarke', 'James', 'Phillips', 'Wilson',
-            'Ali', 'Mason', 'Mitchell', 'Rose', 'Davis', 'Davies', 'Rodriguez', 'Cox', 'Alexander'
-        ]
-
-        for i in range(len(first_names)):
-            tmp_email = first_names[i].lower() + "." + last_names[i].lower() + "@example.com"
-            tmp_pass = ''.join(random.choice(string.ascii_lowercase + string.digits) for i in range(10))
-            user_datastore.create_user(
-                first_name=first_names[i],
-                last_name=last_names[i],
-                email=tmp_email,
-                password=hash_password(tmp_pass),
-                roles=[user_role, ]
-            )
-        db.session.commit()
-    return
-
-
 def f():
     while True:
         print('while loop')
-        time.sleep(2)
-
-p = Process(target=f)
-p.start()
+        time.sleep(1)
 
 
 if __name__ == '__main__':
-
-    # Build a sample db on the fly, if one does not exist yet.
-    app_dir = os.path.realpath(os.path.dirname(__file__))
-    database_path = os.path.join(app_dir, app.config['DATABASE_FILE'])
-    if not os.path.exists(database_path):
-        build_sample_db()
-
-
-    # Start app
+    p = Process(target=f)
+    p.start()
     app.run(debug=True)
+    # Build a sample db on the fly, if one does not exist yet.
+
