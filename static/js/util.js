@@ -1,4 +1,4 @@
-var div = document.getElementById('parking-lot');
+// var div = document.getElementById('parking-lot');
 //car 1
 // div.innerHTML += "<img src='/static/img/car.png' width='160' height='120' style='position: absolute; left: 25px; top: 0px;' />";
 // //car 2
@@ -14,32 +14,12 @@ var div = document.getElementById('parking-lot');
 
 
 
-drawPoint([98,50]);
-drawPoint([98,150]);
-drawPoint([98,250]);
-drawPoint([578,50]);
-drawPoint([578,150]);
-drawPoint([578,250]);
-
-drawPoint([438,50]);
-drawPoint([438,150]);
-drawPoint([438,250]);
-
-drawPoint([438,390]);
-
 var pathes=[[[438,390],[438,50],[98,50]],
             [[438,390],[438,150],[98,150]],
             [[438,390],[438,250],[98,250]],
             [[438,390],[438,50],[578,50]],
             [[438,390],[438,150],[578,150]],
             [[438,390],[438,250],[578,250]]];
-
-drawLines(pathes[0]);
-drawLines(pathes[1]);
-drawLines(pathes[2]);
-drawLines(pathes[3]);
-drawLines(pathes[4]);
-drawLines(pathes[5]);
 
 function drawLines(points) {
   var c = document.getElementById("myCanvas");
@@ -61,6 +41,11 @@ function drawLines(points) {
   }
 }
 
+function eraseLines() {
+    var c = document.getElementById("myCanvas");
+    var ctx = c.getContext("2d");
+    ctx.clearRect(0, 0, 676, 682);
+}
 
 
 function drawPoint(point){
@@ -69,9 +54,25 @@ function drawPoint(point){
   ctx.fillRect(point[0],point[1],2,2);
 }
 
+show_Parking_Fee();
 show_Weather();
 show_Gas();
 show_parked_cars();
+show_car_status();
+
+function show_Parking_Fee() {
+    $.ajax({
+        url: '/carStatus',
+        type: 'GET',
+        success: function(data, textStatus, request) {
+            $("#parkingTime").html(data['time']+' Min');
+            $("#totalPrice").html('$'+data['time']*0.01);
+            console.log(data);
+        }
+    });
+}
+
+
 
 function show_Weather() {
     setInterval(function() {
@@ -122,14 +123,41 @@ function show_parked_cars(){
             for (var i = 0; i < lots.length; i++) {
                 if (lots[i]==1){
                     lot.innerHTML += "<img src='/static/img/car.png' width='160' height='120' style='position: absolute; left:"+(25+475*Math.floor(i/3))+"px; top: "+(100*(i%3))+"px;' />";
-
-
                 }
             };
-            
-            console.log(data);
+            if(data['isIn']==1 && data['isParked']==0){
+                var path=data['spot'];
+                drawLines(pathes[path-1]);
+            }
             }
         });
-			}, 3000);
+			}, 2000);
+
+}
+
+
+function show_car_status() {
+
+    setInterval(function () {
+
+        $.ajax({
+        url: '/carStatus',
+        type: 'GET',
+        success: function(data, textStatus, request) {
+            if (data['isIn']==1 && data['isParked']==0){
+                drawLines(pathes[data['spot']-1]);
+            }else if (data['isIn']==1 && data['isParked']==1)
+            {
+                eraseLines();
+                var lot = document.getElementById('parking-lot');
+                var i=data['spot']-1;
+                lot.innerHTML += "<img src='/static/img/car.png' width='160' height='120' style='position: absolute; left:"+(25+475*Math.floor(i/3))+"px; top: "+(100*(i%3))+"px;' />";
+                console.log(data);
+            }
+
+        }
+        });
+
+    },2000);
 
 }

@@ -29,6 +29,14 @@ roles_users = db.Table(
     db.Column('role_id', db.Integer(), db.ForeignKey('role.id'))
 )
 
+class Account(db.Model):
+    userid=db.Column(db.Integer,primary_key=True)
+    deposit=db.Column(db.REAL)
+
+    def __str__(self):
+        return str(self.userid)+":"+str(self.deposit)
+
+
 
 class Role(db.Model, RoleMixin):
     id = db.Column(db.Integer(), primary_key=True)
@@ -164,15 +172,14 @@ def get_gas_price():
 def check_spot_status():
     parked={'status':[0,1,1,0,0,1]}
 
-
-    return app.response_class(json.dumps(parked,), content_type='application/json')
+    return app.response_class(json.dumps(parked), content_type='application/json')
 
 # Get Car Status
 @app.route("/carStatus")
 def check_car_status():
-    username = request.values.get("key")
-    
-    return 0
+    data={'isIn':1,'isParked':1,'spot':5,'time':24}
+
+    return app.response_class(json.dumps(data), content_type='application/json')
 
 # Get Parking History
 @app.route("/history")
@@ -273,6 +280,14 @@ def f():
 
 p = Process(target=f)
 p.start()
+
+
+accounts = db.session.query(Account).all()
+
+for i in accounts:
+    print(i.userid)
+
+
 
 
 if __name__ == '__main__':
