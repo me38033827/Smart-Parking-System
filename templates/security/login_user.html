@@ -3,9 +3,10 @@
 {% include "security/_messages.html" %}
 {% block body %}
 {{ super() }}
-<br><br><br><br><br>
-<section class="content">
-    <div class="col-sm-8 col-sm-offset-2">
+
+<section class="content" style="background-image: url('/static/img/bg.jpg');background-size: 100% 100%">
+    <br><br><br><br><br>
+    <div class="col-sm-4 col-sm-offset-7">
         <div class="well">
                 <h1>Login</h1>
             <form action="{{ url_for_security('login') }}" method="POST" name="login_user_form">
@@ -19,7 +20,9 @@
             <p>Not yet signed up? Please <a href="{{ url_for('security.register') }}">register for an account</a>.</p>
         </div>
     </div>
-</section>
 <br><br><br><br><br><br><br><br><br><br><br>
 <br><br><br><br><br><br><br><br><br>
+<br><br><br><br><br><br><br><br><br><br><br>
+</section>
+
 {% endblock body %}

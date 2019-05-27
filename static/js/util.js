@@ -161,3 +161,7 @@ function show_car_status() {
     },2000);
 
 }
+
+$(document).ready( function () {
+    $('#myTable').DataTable();
+} );

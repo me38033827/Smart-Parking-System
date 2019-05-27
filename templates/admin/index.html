@@ -11,7 +11,7 @@
       <small>Control panel</small>
   </h1>
   <ol class="breadcrumb">
-      <li><a href="#"><i class="fa fa-dashboard"></i> Home</a></li>
+      <li><a href="/admin"><i class="fa fa-dashboard"></i> Home</a></li>
       <li class="active">Dashboard</li>
   </ol>
 </section>
@@ -171,21 +171,20 @@
 <!-- /.content -->
 {% else %}
 
-<center>
+<center style="background-image: url('/static/img/bg.jpg');background-size: 100% 100%;">
     <section class="content" style="color: white">
         <div class="col-sm-12">
-            <h1>Flask-Admin example</h1>
+            <h1>Smart Parking Management System</h1>
             <p class="lead">
                 Authentication
             </p>
             <p>
-                This example shows how you can use Flask-Admin in an admin template, <br> here I used AdminLTE and <a href="https://pythonhosted.org/Flask-Security/index.html" target="_blank">Flask-Security</a> for authentication.
+                This is a smart parking system developed for both parking lot managers and drivers.
             </p>
             {% if not current_user.is_authenticated %}
-            <p>You can register as a regular user, or log in as a superuser with the following credentials: <br><br>
+            <p>You can register as a regular user, or log in as a superuser <br><br>
 
-                email: <b>admin</b> <br>
-                password: <b>admin</b> <br>
+
                 <br>
                 <p>
                     <a class="btn btn-primary" href="{{ url_for('security.login') }}">Login</a> <a class="btn btn-default" href="{{ url_for('security.register') }}">Register</a>
@@ -197,10 +196,11 @@
                 </p>
             </div>
         </section>
+        <br><br><br><br><br><br><br><br><br>
+    <br><br><br><br><br><br><br><br><br><br>
     </center>
 
-    <br><br><br><br><br><br><br><br><br>
-    <br><br><br><br><br><br><br><br><br><br>
+
  {% endif %}
 
   {% endblock body %}
