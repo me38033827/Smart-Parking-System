@@ -253,32 +253,44 @@ def check_spot_status():
 # Get Car Status
 @app.route("/carStatus")
 def check_car_status():
-    try:
-        user_email = current_user
-        user = db.session.query(User).filter_by(email=user_email)
-        vehicle_information = db.session.query(vehicle).filter_by(userid=user.id)
-        if vehicle_information.status == 1:
-            spot_status = db.session.query(spot).filter_by(spot_id=vehicle_information.spot)
-            contents = {'status': vehicle_information.status, 'start_time': spot_status.start_time,
-                        'fee': spot_status.fee, 'spot_status': spot_status.status}
-            return app.response_class(json.dumps(contents), content_type='application/json')
-        else:
-            contents = {'status': vehicle_information.status}
-            return app.response_class(json.dumps(contents), content_type='application/json')
-    except Exception as e:
-        contents = e
-        return app.response_class(contents, content_type='application/json', status=404)
+    #try:
+    user_email = current_user
+    user = User.query.filter_by(User.email=user_email).one()
+    vehicle_information = db.session.query(vehicle).filter_by(userid=user.id)
+    if vehicle_information.status == 1:
+        spot_status = db.session.query(spot).filter_by(spot_id=vehicle_information.spot)
+        contents = {'status': vehicle_information.status, 'start_time': spot_status.start_time,
+                    'fee': spot_status.fee, 'spot_status': spot_status.status}
+        return app.response_class(json.dumps(contents), content_type='application/json')
+    else:
+        contents = {'status': vehicle_information.status}
+        return app.response_class(json.dumps(contents), content_type='application/json')
+    # except Exception as e:
+    #     contents = e
+    #     return app.response_class(contents, content_type='application/json', status=404)
 
-user_email = 'amelia.smith@gmail.com'
-user_info = db.session.query(User).filter_by(email=user_email)
-print(user_info)
+
+# user_email = "admin"
+# user_info = db.session.query(User).filter_by(email=user_email).first()
+# history_record = db.session.query(record).filter_by(user_id=user_info.id).all()
+# contents = json.dumps({})
+# number = 0
+# for i in history_record:
+#     column = {'id': history_record[number][0], 'user_id': history_record[number][1],
+#               'spot': history_record[number][2], 'plate': history_record[number][3],
+#               'start_time': history_record[number][4],
+#               'end_time': history_record[number][5], 'rate': history_record[number][6]}
+#     contents = json.dumps({**json.loads(contents), **{str(number): column}})
+#     number += 1
+# print(current_user)
+# print(contents)
 # Get Parking History
 @app.route("/history")
 def get_spot_history():
     # try:
     user_email = current_user
-    user_info = db.session.query(User).filter_by(email=user_email)
-    print(user_info)
+    print(user_email)
+    user_info = db.session.query(User).filter_by(email=user_email).first()
     history_record = db.session.query(record).filter_by(user_id=user_info.id).all()
     contents = json.dumps({})
     number = 0
