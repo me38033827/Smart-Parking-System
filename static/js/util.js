@@ -71,6 +71,7 @@ function drawPoint(point){
 
 show_Weather();
 show_Gas();
+show_parked_cars();
 
 function show_Weather() {
     setInterval(function() {
@@ -88,7 +89,7 @@ function show_Weather() {
             $("#sunrise").html(d.toTimeString());
             $("#pressure").html(data["main"]["pressure"] + "hPa");
             $("#weatherIcon").attr("src", "https://openweathermap.org/img/w/" + data["weather"][0]["icon"] + ".png");
-            console.log(data)
+            console.log(data);
             }
         });
 			}, 3000);
@@ -109,3 +110,26 @@ function show_Gas() {
 }
 
 
+function show_parked_cars(){
+
+    setInterval(function() {
+        $.ajax({
+            url: '/spotStatus',
+            type: 'GET',
+            success: function(data, textStatus, request) {
+            var lots=data['status'];
+            var lot = document.getElementById('parking-lot');
+            for (var i = 0; i < lots.length; i++) {
+                if (lots[i]==1){
+                    lot.innerHTML += "<img src='/static/img/car.png' width='160' height='120' style='position: absolute; left:"+(25+475*Math.floor(i/3))+"px; top: "+(100*(i%3))+"px;' />";
+
+
+                }
+            };
+            
+            console.log(data);
+            }
+        });
+			}, 3000);
+
+}
