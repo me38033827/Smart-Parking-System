@@ -13,11 +13,6 @@ from flask_admin import BaseView, expose
 from multiprocessing import Process
 import time
 import json
-<<<<<<< HEAD
-=======
-
-
->>>>>>> 912543700d571ae89d4103329e8b6420dfa6b666
 
 threshold_light = 20
 threshold_ranger = 20
@@ -37,14 +32,15 @@ roles_users = db.Table(
 account = db.Table(
     'account',
     db.Column('userid', db.Integer, primary_key=True),
-    db.Column('deposit', db.Column(db.REAL))
+    db.Column('deposit', db.REAL)
 )
 
 record = db.Table(
     'record',
     db.Column('id', db.Integer, primary_key=True, unique=True, autoincrement=True),
+    db.Column('user_id', db.Integer),
     db.Column('spot', db.Integer),
-    db.Column('plate', db.TEXT, unique=True),
+    db.Column('plate', db.TEXT),
     db.Column('start', db.TEXT),
     db.Column('end', db.TEXT),
     db.Column('rate', db.REAL),
@@ -202,7 +198,6 @@ def get_gas_price():
 # Get Parking Spot Status
 @app.route("/spotStatus")
 def check_spot_status():
-<<<<<<< HEAD
     # Connect the Grove Light Sensor to analog port
     # SIG,NC,VCC,GND
     light_sensor_spot1 = 1
@@ -254,12 +249,6 @@ def check_spot_status():
     except Exception as e:
         contents = e
         return app.response_class(contents, content_type='application/json', status=404)
-=======
-    parked={'status':[0,1,1,0,0,1]}
-
-
-    return app.response_class(json.dumps(parked,), content_type='application/json')
->>>>>>> 912543700d571ae89d4103329e8b6420dfa6b666
 
 # Get Car Status
 @app.route("/carStatus")
@@ -272,26 +261,38 @@ def check_car_status():
             spot_status = db.session.query(spot).filter_by(spot_id=vehicle_information.spot)
             contents = {'status': vehicle_information.status, 'start_time': spot_status.start_time,
                         'fee': spot_status.fee, 'spot_status': spot_status.status}
-            return app.response_class(contents, content_type='application/json')
+            return app.response_class(json.dumps(contents), content_type='application/json')
         else:
             contents = {'status': vehicle_information.status}
-            return app.response_class(contents, content_type='application/json')
+            return app.response_class(json.dumps(contents), content_type='application/json')
     except Exception as e:
         contents = e
         return app.response_class(contents, content_type='application/json', status=404)
 
-
+user_email = 'amelia.smith@gmail.com'
+user_info = db.session.query(User).filter_by(email=user_email)
+print(user_info)
 # Get Parking History
 @app.route("/history")
 def get_spot_history():
-    try:
-        user_email = current_user
-        user = db.session.query(User).filter_by(email=user_email)
-        history_record = db.session.query(record).filter_by(id=user.id).all()
-        return 0
-    except Exception as e:
-        contents = e
-        return app.response_class(contents, content_type='application/json', status=404)
+    # try:
+    user_email = current_user
+    user_info = db.session.query(User).filter_by(email=user_email)
+    print(user_info)
+    history_record = db.session.query(record).filter_by(user_id=user_info.id).all()
+    contents = json.dumps({})
+    number = 0
+    for i in history_record:
+        column = {'id': history_record[number][0], 'user_id': history_record[number][1],
+                  'spot': history_record[number][2], 'plate': history_record[number][3],
+                  'start_time': history_record[number][4],
+                  'end_time': history_record[number][5], 'rate': history_record[number][6]}
+        contents = json.dumps({**json.loads(contents), **{str(number): column}})
+        number += 1
+    return app.response_class(contents, content_type='application/json')
+    # except Exception as e:
+    #     contents = {"Error": str(e)}
+    #     return app.response_class(json.dumps(contents), content_type='application/json', status=404)
 
 # Get Parking Spot Usage
 @app.route("/usage")
