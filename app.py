@@ -252,6 +252,7 @@ def check_spot_status():
         contents = e
         return app.response_class(contents, content_type='application/json', status=404)
 
+
 # Get Car Status
 @app.route("/carStatus")
 def check_car_status():
@@ -271,16 +272,22 @@ def check_car_status():
     except Exception as e:
         contents = {'error': str(e)}
         return app.response_class(contents, content_type='application/json', status=404)
-
-
+# tess = db.session.query(vehicle).filter_by(userid=1).first()
+# tess.status = 0
+# db.session.commit()
 # Get Parking History
 @app.route("/history")
 def get_spot_history():
     try:
         user_email = str(current_user)
         user_info = db.session.query(User).filter_by(email=user_email).first()
-        history_record = db.session.query(record).filter_by(user_id=user_info.id).all()
+        user_role = db.session.query(roles_users).filter_by(user_id=user_info.id).first()
+        if user_role.role_id == 2:
+            history_record = db.session.query(record).all()
+        else:
+            history_record = db.session.query(record).filter_by(user_id=user_info.id).all()
         contents = json.dumps({})
+
         for i in range(len(history_record)):
             column = {'id': history_record[i][0], 'user_id': history_record[i][1],
                       'spot': history_record[i][2], 'plate': history_record[i][3],
