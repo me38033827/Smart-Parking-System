@@ -31,42 +31,50 @@ roles_users = db.Table(
     db.Column('role_id', db.Integer(), db.ForeignKey('role.id'))
 )
 
-account = db.Table(
-    'account',
-    db.Column('userid', db.Integer, primary_key=True),
-    db.Column('deposit', db.REAL)
-)
 
-record = db.Table(
-    'record',
-    db.Column('id', db.Integer, primary_key=True, unique=True, autoincrement=True),
-    db.Column('user_id', db.Integer),
-    db.Column('spot', db.Integer),
-    db.Column('plate', db.TEXT),
-    db.Column('start', db.TEXT),
-    db.Column('end', db.TEXT),
-    db.Column('rate', db.REAL),
-)
+class Account(db.Model):
+    user_id = db.Column(db.Integer, primary_key=True)
+    deposit = db.Column(db.REAL)
 
-vehicle = db.Table(
-    'vehicle',
-    db.Column('plate', db.TEXT, primary_key=True, unique=True),
-    db.Column('userid', db.INTEGER, unique=True),
-    db.Column('status', db.INTEGER),
-    db.Column('spot', db.INTEGER),
-    db.Column('category', db.TEXT),
-    db.Column('color', db.TEXT),
-    db.Column('brand', db.TEXT),
-)
+    def __str__(self):
+        return self.name
 
-spot = db.Table(
-    'spot',
-    db.Column('spot_id', db.INTEGER, primary_key=True, unique=True),
-    db.Column('status', db.INTEGER),
-    db.Column('start_time', db.TEXT),
-    db.Column('end_time', db.TEXT),
-    db.Column('fee', db.REAL),
-)
+
+class Record(db.Model):
+    id = db.Column(db.Integer, primary_key=True, unique=True, autoincrement=True)
+    user_id = db.Column(db.Integer)
+    spot = db.Column(db.Integer)
+    plate = db.Column(db.TEXT)
+    start = db.Column(db.TEXT)
+    end = db.Column(db.TEXT)
+    rate = db.Column(db.REAL)
+
+    def __str__(self):
+        return self.name
+
+
+class Spot(db.Model):
+    spot_id = db.Column(db.INTEGER, primary_key=True, unique=True)
+    status = db.Column(db.INTEGER)
+    start_time = db.Column(db.TEXT)
+    end_time = db.Column(db.TEXT)
+    fee = db.Column(db.REAL)
+
+    def __str__(self):
+        return self.name
+
+
+class Vehicle(db.Model):
+    plate = db.Column(db.TEXT, primary_key=True, unique=True)
+    user_id = db.Column(db.INTEGER, unique=True)
+    status = db.Column(db.INTEGER)
+    spot = db.Column(db.INTEGER)
+    category = db.Column(db.TEXT)
+    color = db.Column(db.TEXT)
+    brand = db.Column(db.TEXT)
+
+    def __str__(self):
+        return self.name
 
 
 class Role(db.Model, RoleMixin):
@@ -96,15 +104,6 @@ class User(db.Model, UserMixin):
 # Setup Flask-Security
 user_datastore = SQLAlchemyUserDatastore(db, User, Role)
 security = Security(app, user_datastore)
-
-
-
-
-
-
-
-
-
 
 
 # Create customized model view class
@@ -197,6 +196,7 @@ def get_gas_price():
         contents = e
         return app.response_class(contents, content_type='application/json', status=404)
 
+
 # Get Parking Spot Status
 @app.route("/spotStatus")
 def check_spot_status():
@@ -246,6 +246,9 @@ def check_spot_status():
             digitalWrite(led_spot3, 0)
             spot3_status = 0
         status = [spot1_status, spot2_status, spot3_status]
+        for i in range(len(status)):
+            Spot.query.filter_by(spot_id=i+1).update({'status': status[i]})
+        db.session.commit()
         contents = {'status': status}
         return app.response_class(json.dumps(contents), content_type='application/json')
     except Exception as e:
@@ -259,9 +262,9 @@ def check_car_status():
     try:
         user_email = str(current_user)
         user = User.query.filter_by(email=user_email).first()
-        vehicle_information = db.session.query(vehicle).filter_by(userid=user.id).first()
+        vehicle_information = db.session.query(Vehicle).filter_by(user_id=user.id).first()
         if vehicle_information.status == 1:
-            spot_status = db.session.query(spot).filter_by(spot_id=vehicle_information.spot).first()
+            spot_status = db.session.query(Spot).filter_by(spot_id=vehicle_information.spot).first()
             contents = {'status': vehicle_information.status, 'spot': vehicle_information.spot,
                         'start_time': spot_status.start_time,
                         'fee': spot_status.fee, 'spot_status': spot_status.status}
@@ -272,9 +275,8 @@ def check_car_status():
     except Exception as e:
         contents = {'error': str(e)}
         return app.response_class(contents, content_type='application/json', status=404)
-# tess = db.session.query(vehicle).filter_by(userid=1).first()
-# tess.status = 0
-# db.session.commit()
+
+
 # Get Parking History
 @app.route("/history")
 def get_spot_history():
@@ -283,11 +285,10 @@ def get_spot_history():
         user_info = db.session.query(User).filter_by(email=user_email).first()
         user_role = db.session.query(roles_users).filter_by(user_id=user_info.id).first()
         if user_role.role_id == 2:
-            history_record = db.session.query(record).all()
+            history_record = db.session.query(Record).all()
         else:
-            history_record = db.session.query(record).filter_by(user_id=user_info.id).all()
+            history_record = db.session.query(Record).filter_by(user_id=user_info.id).all()
         contents = json.dumps({})
-
         for i in range(len(history_record)):
             column = {'id': history_record[i][0], 'user_id': history_record[i][1],
                       'spot': history_record[i][2], 'plate': history_record[i][3],
@@ -329,6 +330,7 @@ def check_entrance_status():
                     if len(plate_recognize()) < 10:
                         in_plate = plate_recognize()
                         break
+
                     time.sleep(2)
                 return
             if exit_value < threshold_light:
