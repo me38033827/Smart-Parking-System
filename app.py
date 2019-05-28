@@ -1,6 +1,8 @@
 #!venv/bin/python
 import os
 import urllib.request
+import requests
+import base64
 from flask import Flask, url_for, redirect, render_template, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, \
@@ -253,58 +255,42 @@ def check_spot_status():
 # Get Car Status
 @app.route("/carStatus")
 def check_car_status():
-    #try:
-    user_email = current_user
-    user = User.query.filter_by(User.email=user_email).one()
-    vehicle_information = db.session.query(vehicle).filter_by(userid=user.id)
-    if vehicle_information.status == 1:
-        spot_status = db.session.query(spot).filter_by(spot_id=vehicle_information.spot)
-        contents = {'status': vehicle_information.status, 'start_time': spot_status.start_time,
-                    'fee': spot_status.fee, 'spot_status': spot_status.status}
-        return app.response_class(json.dumps(contents), content_type='application/json')
-    else:
-        contents = {'status': vehicle_information.status}
-        return app.response_class(json.dumps(contents), content_type='application/json')
-    # except Exception as e:
-    #     contents = e
-    #     return app.response_class(contents, content_type='application/json', status=404)
+    try:
+        user_email = str(current_user)
+        user = User.query.filter_by(email=user_email).first()
+        vehicle_information = db.session.query(vehicle).filter_by(userid=user.id).first()
+        if vehicle_information.status == 1:
+            spot_status = db.session.query(spot).filter_by(spot_id=vehicle_information.spot).first()
+            contents = {'status': vehicle_information.status, 'spot': vehicle_information.spot,
+                        'start_time': spot_status.start_time,
+                        'fee': spot_status.fee, 'spot_status': spot_status.status}
+            return app.response_class(json.dumps(contents), content_type='application/json')
+        else:
+            contents = {'status': vehicle_information.status}
+            return app.response_class(json.dumps(contents), content_type='application/json')
+    except Exception as e:
+        contents = {'error': str(e)}
+        return app.response_class(contents, content_type='application/json', status=404)
 
 
-# user_email = "admin"
-# user_info = db.session.query(User).filter_by(email=user_email).first()
-# history_record = db.session.query(record).filter_by(user_id=user_info.id).all()
-# contents = json.dumps({})
-# number = 0
-# for i in history_record:
-#     column = {'id': history_record[number][0], 'user_id': history_record[number][1],
-#               'spot': history_record[number][2], 'plate': history_record[number][3],
-#               'start_time': history_record[number][4],
-#               'end_time': history_record[number][5], 'rate': history_record[number][6]}
-#     contents = json.dumps({**json.loads(contents), **{str(number): column}})
-#     number += 1
-# print(current_user)
-# print(contents)
 # Get Parking History
 @app.route("/history")
 def get_spot_history():
-    # try:
-    user_email = current_user
-    print(user_email)
-    user_info = db.session.query(User).filter_by(email=user_email).first()
-    history_record = db.session.query(record).filter_by(user_id=user_info.id).all()
-    contents = json.dumps({})
-    number = 0
-    for i in history_record:
-        column = {'id': history_record[number][0], 'user_id': history_record[number][1],
-                  'spot': history_record[number][2], 'plate': history_record[number][3],
-                  'start_time': history_record[number][4],
-                  'end_time': history_record[number][5], 'rate': history_record[number][6]}
-        contents = json.dumps({**json.loads(contents), **{str(number): column}})
-        number += 1
-    return app.response_class(contents, content_type='application/json')
-    # except Exception as e:
-    #     contents = {"Error": str(e)}
-    #     return app.response_class(json.dumps(contents), content_type='application/json', status=404)
+    try:
+        user_email = str(current_user)
+        user_info = db.session.query(User).filter_by(email=user_email).first()
+        history_record = db.session.query(record).filter_by(user_id=user_info.id).all()
+        contents = json.dumps({})
+        for i in range(len(history_record)):
+            column = {'id': history_record[i][0], 'user_id': history_record[i][1],
+                      'spot': history_record[i][2], 'plate': history_record[i][3],
+                      'start_time': history_record[i][4],
+                      'end_time': history_record[i][5], 'rate': history_record[i][6]}
+            contents = json.dumps({**json.loads(contents), **{str(i): column}})
+        return app.response_class(contents, content_type='application/json')
+    except Exception as e:
+        contents = {"Error": str(e)}
+        return app.response_class(json.dumps(contents), content_type='application/json', status=404)
 
 # Get Parking Spot Usage
 @app.route("/usage")
@@ -320,22 +306,52 @@ def get_daily_revenue():
 def check_entrance_status():
     # Connect the Grove Light Sensor to analog port
     # SIG,NC,VCC,GND
-    lightsensorin = 2
-    lightsensorout = 3
+    light_sensor_in = 2
+    light_sensor_out = 3
 
-
-    grovepi.pinMode(lightsensorin, "INPUT")
-    grovepi.pinMode(lightsensorout, "INPUT")
+    grovepi.pinMode(light_sensor_in, "INPUT")
+    grovepi.pinMode(light_sensor_out, "INPUT")
     while True:
         try:
             # Get sensor value
-            entrance_value = grovepi.analogRead(lightsensorin)
-            exit_value = grovepi.analogRead(lightsensorout)
-
-
+            entrance_value = grovepi.analogRead(light_sensor_in)
+            exit_value = grovepi.analogRead(light_sensor_out)
+            if entrance_value < threshold_light:
+                time.sleep(2)
+                while True:
+                    if len(plate_recognize()) < 10:
+                        in_plate = plate_recognize()
+                        break
+                    time.sleep(2)
+                return
+            if exit_value < threshold_light:
+                time.sleep(2)
+                while True:
+                    if len(plate_recognize()) < 10:
+                        out_plate = plate_recognize()
+                        break
+                    time.sleep(2)
+                return
         except Exception as e:
-            contents = e
+            contents = {'error': e}
             return app.response_class(contents, content_type='application/json', status=404)
+
+
+def plate_recognize():
+    try:
+        # Sample image file is available at http://plates.openalpr.com/ea7the.jpg
+        image_path = os.path.abspath(os.path.dirname(__file__)) + '\image\car2.jpeg'
+        # pi use image_path = '../image/car2.jpeg'
+        secret_key = 'sk_24c51607925c2471ba30d290'
+        with open(image_path, 'rb') as image_file:
+            img_base64 = base64.b64encode(image_file.read())
+        url = 'https://api.openalpr.com/v2/recognize_bytes?recognize_vehicle=1&country=us&secret_key=%s' % (secret_key)
+        r = requests.post(url, data=img_base64)
+        r = r.json()
+        plate_result = r["results"][0]["plate"]
+        return plate_result
+    except Exception as e:
+        return e
 
 
 # Create admin
