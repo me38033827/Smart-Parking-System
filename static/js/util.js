@@ -59,6 +59,9 @@ show_Weather();
 show_Gas();
 show_parked_cars();
 show_car_status();
+show_record();
+
+
 
 function show_Parking_Fee() {
     $.ajax({
@@ -162,6 +165,37 @@ function show_car_status() {
 
 }
 
+function show_record(){
+
+    $.ajax({
+        url: '/history',
+        type: 'GET',
+        success: function(data, textStatus, request) {
+            console.log(data);
+
+            for (var i =0;i<Object.keys(data).length;i++){
+
+                record=data[i.toString()];
+
+                var start=new Date(record['start_time']);
+                var end=new Date(record['end_time']);
+                var delta_time = Math.abs(end - start);
+                var hours = (delta_time / (1000 * 60 * 60)).toFixed(1);
+
+                $("#parkRecord").append("<tr><td>"+(i+1)+"</td>"+"<td>"+record['start_time']+"</td>"+"<td>"+record['end_time']+"</td>"+"<td>"+record['spot']+"</td>"+"<td>"+hours+" Hours</td>"+"<td>"+(hours)*record['rate']+"</td></tr>");
+              
+
+
+            }
+            $('#myTable').DataTable();
+        }
+    });
+
+}
+
+
 $(document).ready( function () {
-    $('#myTable').DataTable();
+
+
+
 } );
