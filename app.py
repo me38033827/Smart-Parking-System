@@ -61,8 +61,7 @@ class Spot(db.Model):
     spot_id = db.Column(db.INTEGER, primary_key=True, unique=True)
     status = db.Column(db.INTEGER)
     start_time = db.Column(db.TEXT)
-    end_time = db.Column(db.TEXT)
-    fee = db.Column(db.REAL)
+    rate = db.Column(db.REAL)
 
     def __str__(self):
         return self.name
@@ -78,7 +77,7 @@ class Vehicle(db.Model):
     brand = db.Column(db.TEXT)
 
     def __str__(self):
-        return self.name
+        return self.plate
 
 
 class Role(db.Model, RoleMixin):
@@ -173,7 +172,7 @@ def get_weather_api():
         contents = e
         return app.response_class(contents, content_type='application/json', status=404)
 
-# # Get Temperature Information
+# Get Temperature Information
 @app.route('/temperature')
 def get_temperature():
     sensor = 7
@@ -215,9 +214,9 @@ def check_spot_status():
 
     # Connect the LED to digital port
     # SIG,NC,VCC,GND
-    led_spot1 = 1
-    led_spot2 = 2
-    led_spot3 = 3
+    led_spot1 = 2
+    led_spot2 = 3
+    led_spot3 = 4
     # Turn on LED once sensor exceeds threshold resistance
     grovepi.pinMode(light_sensor_spot1, "INPUT")
     grovepi.pinMode(ranger_sensor_spot2, "INPUT")
@@ -271,14 +270,14 @@ def check_car_status():
         spot_status = Spot.query.filter_by(spot_id=vehicle_information.spot).first()
         contents = {'status': vehicle_information.status, 'spot': vehicle_information.spot,
                     'start_time': spot_status.start_time,
-                    'fee': spot_status.fee, 'spot_status': spot_status.status}
+                    'rate': spot_status.rate, 'spot_status': spot_status.status}
         return app.response_class(json.dumps(contents), content_type='application/json')
     else:
         contents = {'status': vehicle_information.status}
         return app.response_class(json.dumps(contents), content_type='application/json')
-    #except Exception as e:
-     #   contents = {'error': str(e)}
-      #  return app.response_class(contents, content_type='application/json', status=404)
+    # except Exception as e:
+    #     contents = {'error': str(e)}
+    #     return app.response_class(contents, content_type='application/json', status=404)
 
 
 # Get Parking History
@@ -318,10 +317,12 @@ def get_daily_revenue():
 def check_entrance_status():
     # Connect the Grove Light Sensor to analog port
     # SIG,NC,VCC,GND
-    light_sensor_in = 2
-    light_sensor_out = 3
+    light_sensor_in = 1
+    light_sensor_out = 2
     grovepi.pinMode(light_sensor_in, "INPUT")
     grovepi.pinMode(light_sensor_out, "INPUT")
+    camera = PiCamera()
+    camera.resolution = (1024, 768)
     while True:
         try:
             # Get sensor value
