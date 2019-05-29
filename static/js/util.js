@@ -123,12 +123,17 @@ function show_parked_cars(){
             success: function(data, textStatus, request) {
             var lots=data['status'];
             var lot = document.getElementById('parking-lot');
+
             for (var i = 0; i < lots.length; i++) {
                 if (lots[i]==1){
                     // lot.innerHTML += "<img src='/static/img/car.png' width='160' height='120' style='position: absolute; left:"+(25+475*Math.floor(i/3))+"px; top: "+(100*(i%3))+"px;' />";
-                    $('sopt'+i).show();
+                    $('#spot'+(i+1)).removeAttr("hidden");
+
+
                 }else{
-                    $('sopt'+i).hide();
+                    $('#spot'+(i+1)).attr("hidden",'hidden');
+
+
                 }
             };
             if(data['isIn']==1 && data['isParked']==0){

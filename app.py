@@ -307,7 +307,7 @@ def get_spot_usage():
 # Get Daily Revenue
 @app.route("/revenue")
 def get_daily_revenue():
-    return 0
+    return app.response_class(str(current_user))
 
 
 def check_entrance_status():
