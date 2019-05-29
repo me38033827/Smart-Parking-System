@@ -1,8 +1,9 @@
-#!venv/bin/python
+#! /usr/bin/env python
 import os
-import urllib.request
+import urllib
 import requests
 import base64
+import datetime
 from flask import Flask, url_for, redirect, render_template, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, \
@@ -13,11 +14,14 @@ from flask_admin.contrib import sqla
 from flask_admin import helpers as admin_helpers
 from flask_admin import BaseView, expose
 from multiprocessing import Process
+# import grovepi
+# from picamera import PiCamera
 import time
 import json
 
 threshold_light = 20
 threshold_ranger = 20
+global_rate = 1
 # Create Flask application
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -162,7 +166,7 @@ def get_weather_api():
     url = "http://api.openweathermap.org/data/2.5/weather" \
           "?zip=98467,us&appid=18673bd31365411ca390843bed5b6cba&units=Imperial"
     try:
-        response = urllib.request.urlopen(url)
+        response = urllib.urlopen(url)
         contents = response.read()
         return app.response_class(contents, content_type='application/json')
     except Exception as e:
@@ -189,7 +193,7 @@ def get_temperature():
 def get_gas_price():
     url = "http://devapi.mygasfeed.com/stations/details/103920/rfej9napna.json"
     try:
-        response = urllib.request.urlopen(url)
+        response = urllib.urlopen(url)
         contents = response.read()
         return app.response_class(contents, content_type='application/json')
     except Exception as e:
@@ -259,22 +263,22 @@ def check_spot_status():
 # Get Car Status
 @app.route("/carStatus")
 def check_car_status():
-    try:
-        user_email = str(current_user)
-        user = User.query.filter_by(email=user_email).first()
-        vehicle_information = db.session.query(Vehicle).filter_by(user_id=user.id).first()
-        if vehicle_information.status == 1:
-            spot_status = db.session.query(Spot).filter_by(spot_id=vehicle_information.spot).first()
-            contents = {'status': vehicle_information.status, 'spot': vehicle_information.spot,
-                        'start_time': spot_status.start_time,
-                        'fee': spot_status.fee, 'spot_status': spot_status.status}
-            return app.response_class(json.dumps(contents), content_type='application/json')
-        else:
-            contents = {'status': vehicle_information.status}
-            return app.response_class(json.dumps(contents), content_type='application/json')
-    except Exception as e:
-        contents = {'error': str(e)}
-        return app.response_class(contents, content_type='application/json', status=404)
+    #try:
+    user_email = str(current_user)
+    user = User.query.filter_by(email=user_email).first()
+    vehicle_information = Vehicle.query.filter_by(user_id=user.id).first()
+    if vehicle_information.status == 1:
+        spot_status = Spot.query.filter_by(spot_id=vehicle_information.spot).first()
+        contents = {'status': vehicle_information.status, 'spot': vehicle_information.spot,
+                    'start_time': spot_status.start_time,
+                    'fee': spot_status.fee, 'spot_status': spot_status.status}
+        return app.response_class(json.dumps(contents), content_type='application/json')
+    else:
+        contents = {'status': vehicle_information.status}
+        return app.response_class(json.dumps(contents), content_type='application/json')
+    #except Exception as e:
+     #   contents = {'error': str(e)}
+      #  return app.response_class(contents, content_type='application/json', status=404)
 
 
 # Get Parking History
@@ -288,14 +292,14 @@ def get_spot_history():
             history_record = db.session.query(Record).all()
         else:
             history_record = db.session.query(Record).filter_by(user_id=user_info.id).all()
-        contents = json.dumps({})
+        contents = {}
         for i in range(len(history_record)):
             column = {'id': history_record[i][0], 'user_id': history_record[i][1],
                       'spot': history_record[i][2], 'plate': history_record[i][3],
                       'start_time': history_record[i][4],
                       'end_time': history_record[i][5], 'rate': history_record[i][6]}
-            contents = json.dumps({**json.loads(contents), **{str(i): column}})
-        return app.response_class(contents, content_type='application/json')
+            contents[str(i)] = column
+        return app.response_class(json.dumps(contents), content_type='application/json')
     except Exception as e:
         contents = {"Error": str(e)}
         return app.response_class(json.dumps(contents), content_type='application/json', status=404)
@@ -316,7 +320,6 @@ def check_entrance_status():
     # SIG,NC,VCC,GND
     light_sensor_in = 2
     light_sensor_out = 3
-
     grovepi.pinMode(light_sensor_in, "INPUT")
     grovepi.pinMode(light_sensor_out, "INPUT")
     while True:
@@ -330,9 +333,27 @@ def check_entrance_status():
                     if len(plate_recognize()) < 10:
                         in_plate = plate_recognize()
                         break
-
                     time.sleep(2)
-                return
+                in_vehicle = Vehicle.query.filter_by(plate=in_plate).first()
+                if in_vehicle is None:
+                    display("No permit in!")
+                else:
+                    spot = search_spot()
+                    if spot != -1:
+                        in_spot = Spot.query.filter_by(spot_id=spot).first()
+                        display("Welcome in!\n" + "Spot:" + in_spot.spot_id)
+                        # tai gan
+                        in_vehicle.status = 1
+                        in_vehicle.spot = spot
+                        in_spot.status = 1
+                        in_spot.start_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        in_spot.rate = global_rate
+                        db.session.commit()
+                        while grovepi.analogRead(light_sensor_in) > threshold_light:
+                            time.sleep(2)
+                        # fang gan
+                    else:
+                        display("No vacant spot!")
             if exit_value < threshold_light:
                 time.sleep(2)
                 while True:
@@ -340,27 +361,118 @@ def check_entrance_status():
                         out_plate = plate_recognize()
                         break
                     time.sleep(2)
-                return
+                out_vehicle = Vehicle.query.filter_by(plate=out_plate).first()
+                out_spot = Spot.query.filter_by(spot_id=out_vehicle).first()
+                out_account = Account.query.filter_by(user_id=out_vehicle.user_id).first()
+                end_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S')
+                start_time = datetime.datetime.strptime(out_spot.start_time, '%Y-%m-%d %H:%M:%S')
+                fee = (end_time - start_time).total_seconds() * out_spot.rate
+                if out_account.deposit < fee:
+                    display("No sufficient fund!")
+                else:
+                    display("See you next time!\n" + "Plate:" + out_vehicle.plate)
+                    # tai gan
+                    out_account.deposit -= fee
+                    new_record = Record(user_id=out_vehicle.user_id, spot=out_vehicle.spot, plate=out_vehicle.plate,
+                                        start=out_spot.start_time, end=str(datetime.datetime.now()), rate=out_spot.rate)
+                    Record.add(new_record)
+                    out_vehicle.status = 0
+                    out_vehicle.spot = 0
+                    out_spot.status = 1
+                    out_spot.start_time = None
+                    out_spot.rate = global_rate
+                    db.session.commit()
+                    while grovepi.analogRead(light_sensor_out) > threshold_light:
+                        time.sleep(2)
+                    # fang gan
+            return
         except Exception as e:
-            contents = {'error': e}
-            return app.response_class(contents, content_type='application/json', status=404)
+            return e
+
+
+def camera_capture():
+    camera = PiCamera()
+    camera.resolution = (1024, 768)
+    camera.start_preview()
+    file_name = time.asctime(time.localtime(time.time()))
+    camera.capture('images/' + file_name + '.jpg')
+    return file_name
 
 
 def plate_recognize():
     try:
         # Sample image file is available at http://plates.openalpr.com/ea7the.jpg
-        image_path = os.path.abspath(os.path.dirname(__file__)) + '\image\car2.jpeg'
-        # pi use image_path = '../image/car2.jpeg'
+        file_name = camera_capture()
+        image_path = os.path.abspath(os.path.dirname(__file__)) + '/image/' + file_name + 'jpg'
         secret_key = 'sk_24c51607925c2471ba30d290'
         with open(image_path, 'rb') as image_file:
             img_base64 = base64.b64encode(image_file.read())
-        url = 'https://api.openalpr.com/v2/recognize_bytes?recognize_vehicle=1&country=us&secret_key=%s' % (secret_key)
+        url = 'https://api.openalpr.com/v2/recognize_bytes?recognize_vehicle=1&country=us&secret_key=%s' % secret_key
         r = requests.post(url, data=img_base64)
         r = r.json()
         plate_result = r["results"][0]["plate"]
         return plate_result
     except Exception as e:
         return e
+
+
+# send command to display (no need for external use)
+def text_command(cmd):
+    bus.write_byte_data(DISPLAY_TEXT_ADDR,0x80,cmd)
+
+
+def display(word):
+    import time, sys
+    if sys.platform == 'uwp':
+        import winrt_smbus as smbus
+        bus = smbus.SMBus(1)
+    else:
+        import smbus
+        import RPi.GPIO as GPIO
+        rev = GPIO.RPI_REVISION
+        if rev == 2 or rev == 3:
+            bus = smbus.SMBus(1)
+        else:
+            bus = smbus.SMBus(0)
+
+    # this device has two I2C addresses
+    DISPLAY_RGB_ADDR = 0x62
+    DISPLAY_TEXT_ADDR = 0x3e
+    bus.write_byte_data(DISPLAY_RGB_ADDR, 0, 0)
+    bus.write_byte_data(DISPLAY_RGB_ADDR, 1, 0)
+    bus.write_byte_data(DISPLAY_RGB_ADDR, 0x08, 0xaa)
+    bus.write_byte_data(DISPLAY_RGB_ADDR, 4, 0)
+    bus.write_byte_data(DISPLAY_RGB_ADDR, 3, 128)
+    bus.write_byte_data(DISPLAY_RGB_ADDR, 2, 64)
+    text_command(0x01)  # clear display
+    time.sleep(.05)
+    text_command(0x08 | 0x04)  # display on, no cursor
+    text_command(0x28)  # 2 lines
+    time.sleep(.05)
+    count = 0
+    row = 0
+    for c in word:
+        if c == '\n' or count == 16:
+            count = 0
+            row += 1
+            if row == 2:
+                break
+            text_command(0xc0)
+            if c == '\n':
+                continue
+        count += 1
+        bus.write_byte_data(DISPLAY_TEXT_ADDR, 0x40, ord(c))
+
+
+def search_spot():
+    if Spot.query.filter_by(spot_id=1).first().status == 0:
+        return 1
+    if Spot.query.filter_by(spot_id=2).first().status == 0:
+        return 2
+    if Spot.query.filter_by(spot_id=3).first().status == 0:
+        return 3
+    return -1
 
 
 # Create admin
