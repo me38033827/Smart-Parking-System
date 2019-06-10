@@ -26,28 +26,50 @@ import nexmo
 import glob
 import urllib3
 
+
 threshold_light = 100
 threshold_ranger = 10
 global_rate = 0.1
 file_name = ""
 
+# Connect the Grove Light Sensor to analog port
+# SIG,NC,VCC,GND
+light_sensor_spot1 = 0
+# Connect the motion sensor to digital port
+# SIG,NC,VCC,GND
+ranger_sensor_spot2 = 5
+ranger_sensor_spot3 = 6
+
+# Connect the LED to digital port
+# SIG,NC,VCC,GND
+led_spot1 = 2
+led_spot2 = 3
+led_spot3 = 4
+# Turn on LED once sensor exceeds threshold resistance
+grovepi.pinMode(light_sensor_spot1, "INPUT")
+grovepi.pinMode(ranger_sensor_spot2, "INPUT")
+grovepi.pinMode(ranger_sensor_spot3, "INPUT")
+grovepi.pinMode(led_spot1, "OUTPUT")
+grovepi.pinMode(led_spot2, "OUTPUT")
+grovepi.pinMode(led_spot3, "OUTPUT")
+
 host = 'hc8t32.messaging.internetofthings.ibmcloud.com'
 username = 'use-token-auth'
-# occupancy
+#occupancy
 clientid_occ = 'd:hc8t32:Sensors:Occupancy'
 password_occ = 'XdA@g*6NkKsR4_cZ*J'
 topic_occ = 'iot-2/evt/occupancy/fmt/json'
 client_occ = mqtt.Client(clientid_occ)
 client_occ.username_pw_set(username, password_occ)
 client_occ.connect(host, 1883, 60)
-# temperature_humidity
+#temperature_humidity
 clientid_temp = 'd:hc8t32:Sensors:temp_hum'
 password_temp = 'u_LdYE6)@hhtCl7C5E'
 topic_temp = 'iot-2/evt/temp/fmt/json'
 client_temp = mqtt.Client(clientid_temp)
 client_temp.username_pw_set(username, password_temp)
 client_temp.connect(host, 1883, 60)
-# fee
+#fee
 clientid_fee = 'd:hc8t32:Sensors:fee'
 password_fee = ')*pyj@G!RS2oSerFNd'
 topic_fee = 'iot-2/evt/fee/fmt/json'
@@ -58,6 +80,8 @@ client_fee.username_pw_set(username, password_fee)
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
 db = SQLAlchemy(app)
+
+
 
 # Define models
 roles_users = db.Table(
@@ -111,6 +135,7 @@ class Vehicle(db.Model):
         return self.plate
 
 
+
 class Role(db.Model, RoleMixin):
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String(80), unique=True)
@@ -140,6 +165,15 @@ user_datastore = SQLAlchemyUserDatastore(db, User, Role)
 security = Security(app, user_datastore)
 
 
+
+
+
+
+
+
+
+
+
 # Create customized model view class
 class MyModelView(sqla.ModelView):
 
@@ -163,10 +197,9 @@ class MyModelView(sqla.ModelView):
             else:
                 # login
                 return redirect(url_for('security.login', next=request.url))
-
     # can edit = True
     edit_modal = True
-    create_modal = True
+    create_modal = True    
     can_export = True
     can_view_details = True
     details_modal = True
@@ -186,11 +219,15 @@ class CustomView(BaseView):
     def index(self):
         return self.render('admin/custom_index.html')
 
-
 # Flask views
 @app.route('/')
 def index():
     return render_template('index.html')
+    
+
+@app.route('/monitor')
+def monitor():
+    return render_template('admin/monitor.html')
 
 
 # Get Weather Information
@@ -206,20 +243,18 @@ def get_weather_api():
         contents = e
         return app.response_class(contents, content_type='application/json', status=404)
 
-
 # Get Temperature Information
 @app.route('/temperature')
 def get_temperature():
     sensor = 7
     try:
         [temp, hum] = grovepi.dht(sensor, 0)
-        client_fee.publish(topic_temp, json.dumps({'Temperature': temp, 'Humidity': hum}))
+        client_fee.publish(topic_temp, json.dumps({'Temperature':temp,'Humidity':hum}))
         contents = {'temperature': temp, 'humidity': hum}
         return app.response_class(json.dumps(contents), content_type='application/json')
     except Exception as e:
         contents = e
         return app.response_class(contents, content_type='application/json', status=404)
-
 
 # Get Gas Price
 @app.route("/gas")
@@ -236,69 +271,44 @@ def get_gas_price():
 
 # Get Parking Spot Status
 @app.route("/spotStatus")
+def check_spot_status():
+    
 
-
-defm
-check_spot_status():
-
-# Connect the Grove Light Sensor to analog port
-# SIG,NC,VCC,GND
-light_sensor_spot1 = 0
-# Connect the motion sensor to digital port
-# SIG,NC,VCC,GND
-ranger_sensor_spot2 = 5
-ranger_sensor_spot3 = 6
-
-# Connect the LED to digital port
-# SIG,NC,VCC,GND
-led_spot1 = 2
-led_spot2 = 3
-led_spot3 = 4
-# Turn on LED once sensor exceeds threshold resistance
-grovepi.pinMode(light_sensor_spot1, "INPUT")
-grovepi.pinMode(ranger_sensor_spot2, "INPUT")
-grovepi.pinMode(ranger_sensor_spot3, "INPUT")
-grovepi.pinMode(led_spot1, "OUTPUT")
-grovepi.pinMode(led_spot2, "OUTPUT")
-grovepi.pinMode(led_spot3, "OUTPUT")
-
-# try:
-# Get sensor value
-spot1_value_light = grovepi.analogRead(light_sensor_spot1)
-spot2_value_ranger = grovepi.ultrasonicRead(ranger_sensor_spot2)
-spot3_value_ranger = grovepi.ultrasonicRead(ranger_sensor_spot3)
-if spot1_value_light < threshold_light:
-    grovepi.digitalWrite(led_spot1, 1)
-    spot1_status = 1
-else:
-    grovepi.digitalWrite(led_spot1, 0)
-    spot1_status = 0
-if spot2_value_ranger < threshold_ranger:
-    grovepi.digitalWrite(led_spot2, 1)
-    spot2_status = 1
-else:
-    grovepi.digitalWrite(led_spot2, 0)
-    spot2_status = 0
-if spot3_value_ranger < threshold_ranger:
-    grovepi.digitalWrite(led_spot3, 1)
-    spot3_status = 1
-else:
-    grovepi.digitalWrite(led_spot3, 0)
-    spot3_status = 0
-status = [spot1_status, spot2_status, spot3_status]
-occupancy = (spot1_status + spot2_status + spot3_status) / 6.0 * 100.0
-client_occ.publish(topic_occ, json.dumps({'occupancy': str(occupancy)}))
-for i in range(len(status)):
-    Spot.query.filter_by(spot_id=i + 1).update({'status': status[i]})
-db.session.commit()
-
-contents = {'status': status}
-return app.response_class(json.dumps(contents), content_type='application/json')
-
-
-# except Exception as e:
-#   contents = e
-#   return app.response_class(contents, content_type='application/json', status=404)
+    #try:
+    # Get sensor value
+    spot1_value_light = grovepi.analogRead(light_sensor_spot1)
+    spot2_value_ranger = grovepi.ultrasonicRead(ranger_sensor_spot2)
+    spot3_value_ranger = grovepi.ultrasonicRead(ranger_sensor_spot3)
+    if spot1_value_light < threshold_light:
+        grovepi.digitalWrite(led_spot1, 1)
+        spot1_status = 1
+    else:
+        grovepi.digitalWrite(led_spot1, 0)
+        spot1_status = 0
+    if spot2_value_ranger < threshold_ranger:
+        grovepi.digitalWrite(led_spot2, 1)
+        spot2_status = 1
+    else:
+        grovepi.digitalWrite(led_spot2, 0)
+        spot2_status = 0
+    if spot3_value_ranger < threshold_ranger:
+        grovepi.digitalWrite(led_spot3, 1)
+        spot3_status = 1
+    else:
+        grovepi.digitalWrite(led_spot3, 0)
+        spot3_status = 0
+    status = [spot1_status, spot2_status, spot3_status]
+    occupancy = (spot1_status + spot2_status + spot3_status)/6.0 *100.0
+    client_occ.publish(topic_occ, json.dumps({'occupancy':str(occupancy)}))
+    for i in range(len(status)):
+        Spot.query.filter_by(spot_id=i+1).update({'status': status[i]})
+    db.session.commit()
+    
+    contents = {'status': status}
+    return app.response_class(json.dumps(contents), content_type='application/json')
+    #except Exception as e:
+     #   contents = e
+     #   return app.response_class(contents, content_type='application/json', status=404)
 
 @app.route("/picture")
 def picture_preview():
@@ -307,27 +317,28 @@ def picture_preview():
     path_for_picture = [os.path.join(picture_path, basename) for basename in files]
     picture = max(path_for_picture, key=os.path.getctime)
     p = open(picture, 'r')
-    f = p.read()
+    f=p.read()
     p.close()
-    return app.response_class(f, content_type='image/jpeg')
+    return app.response_class(f,content_type='image/jpeg')
+
 
 
 # Get Car Status
 @app.route("/carStatus")
 def check_car_status():
-    # try:
+    #try:
     user_email = str(current_user)
     user = User.query.filter_by(email=user_email).first()
     vehicle_information = Vehicle.query.filter_by(user_id=user.id).first()
-    account = Account.query.filter_by(user_id=user.id).first()
+    account=Account.query.filter_by(user_id=user.id).first()
     if vehicle_information.status == 1:
         spot_status = Spot.query.filter_by(spot_id=vehicle_information.spot).first()
         contents = {'status': vehicle_information.status, 'spot': vehicle_information.spot,
                     'start_time': spot_status.start_time,
-                    'rate': spot_status.rate, 'spot_status': spot_status.status, 'balance': account.deposit}
+                    'rate': spot_status.rate, 'spot_status': spot_status.status,'balance':account.deposit}
         return app.response_class(json.dumps(contents), content_type='application/json')
     else:
-        contents = {'status': vehicle_information.status, 'balance': account.deposit}
+        contents = {'status': vehicle_information.status,'balance':account.deposit}
         return app.response_class(json.dumps(contents), content_type='application/json')
     # except Exception as e:
     #     contents = {'error': str(e)}
@@ -336,7 +347,7 @@ def check_car_status():
 
 @app.route("/history")
 def get_spot_history():
-    # try:
+    #try:
     user_email = str(current_user)
     user_info = User.query.filter_by(email=user_email).first()
     user_role = db.session.query(roles_users).filter_by(user_id=user_info.id).first()
@@ -351,18 +362,16 @@ def get_spot_history():
                   'spot': history_record[i].spot, 'plate': history_record[i].plate,
                   'start_time': history_record[i].start,
                   'end_time': history_record[i].end, 'rate': history_record[i].rate}
-        contents[str(i)] = column
+        contents[str(i)]=column
     return app.response_class(json.dumps(contents), content_type='application/json')
-    # except Exception as e:
-    #   contents = {"Error": str(e)}
-    #  return app.response_class(json.dumps(contents), content_type='application/json', status=404)
-
+    #except Exception as e:
+     #   contents = {"Error": str(e)}
+      #  return app.response_class(json.dumps(contents), content_type='application/json', status=404)
 
 # Get Parking Spot Usage
 @app.route("/usage")
 def get_spot_usage():
     return 0
-
 
 # Get Daily Revenue
 @app.route("/revenue")
@@ -400,25 +409,26 @@ def check_entrance_status():
                     if spot != -1:
                         in_spot = Spot.query.filter_by(spot_id=spot).first()
                         text = "Welcome in!\n" + "Spot:" + str(in_spot.spot_id)
-                        # sendSMS(text)
+                        #sendSMS(text)
                         display(text)
-                        set_in_servo()
+                        set_in_servo(07)
                         in_vehicle.status = 1
                         in_vehicle.spot = spot
-
+                        
                         in_spot.start_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                        print(in_vehicle.status, in_vehicle.spot, in_spot.start_time, in_spot.rate)
+                        print (in_vehicle.status, in_vehicle.spot, in_spot.start_time, in_spot.rate)
                         in_spot.rate = global_rate
-
+                        
                         db.session.commit()
                         while grovepi.analogRead(light_sensor_in) < threshold_light:
                             time.sleep(2)
                         time.sleep(2)
-                        set_out_servo()
+                        set_out_servo(07)
                         display("Ready for service")
                     else:
                         display("No vacant spot!")
             if exit_value < threshold_light:
+                print("23123131")
                 display("Welcome out!")
                 out_plate = str(plate_recognize(camera))
                 if out_plate == "error":
@@ -432,24 +442,23 @@ def check_entrance_status():
                 start_time = datetime.datetime.strptime(out_spot.start_time, '%Y-%m-%d %H:%M:%S')
                 fee = (end_time - start_time).total_seconds() * out_spot.rate
                 client_fee.connect(host, 1883, 60)
-                client_fee.publish(topic_fee, json.dumps({'Fee': fee}))
-                print(fee, out_account.deposit)
+                client_fee.publish(topic_fee, json.dumps({'Fee':fee}))
+                print(fee,out_account.deposit)
                 if out_account.deposit < fee:
                     text = "No sufficient fund!"
-                    # sendSMS(text + " Please refill account!")
+                    #sendSMS(text + " Please refill account!")
                     display(text)
                 else:
                     if out_plate == "EA7THE":
                         send_data(0)
                     text = "See you!\n" + "Plate:" + str(out_vehicle.plate)
-                    # sendSMS(text)
+                    sendSMS(text+"\nFee:" + str(fee))
                     display(text)
                     out_account.deposit -= fee
                     new_record = Record(user_id=out_vehicle.user_id, spot=out_vehicle.spot, plate=out_vehicle.plate,
-                                        start=out_spot.start_time,
-                                        end=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), rate=out_spot.rate)
+                                        start=out_spot.start_time, end=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), rate=out_spot.rate)
                     db.session.add(new_record)
-                    print(fee, out_account.deposit)
+                    print(fee,out_account.deposit)
                     out_vehicle.status = 0
                     out_vehicle.spot = 0
                     out_spot.start_time = None
@@ -457,11 +466,10 @@ def check_entrance_status():
                     while grovepi.analogRead(light_sensor_out) < threshold_light:
                         time.sleep(2)
                     display("Ready for service")
-            print("again")
             time.sleep(2)
         except Exception as e:
             continue
-    return
+    return 
 
 
 def camera_capture(camera):
@@ -473,7 +481,7 @@ def camera_capture(camera):
 
 def plate_recognize(camera):
     try:
-        # Sample image file is available at http://plates.openalpr.com/ea7the.jpg
+    # Sample image file is available at http://plates.openalpr.com/ea7the.jpg
         file_name = camera_capture(camera)
         image_path = os.path.abspath(os.path.dirname(__file__)) + '/image/' + file_name + '.jpg'
         secret_key = 'sk_2a656f671be8995a57765172'
@@ -488,15 +496,13 @@ def plate_recognize(camera):
         time.sleep(5)
         return "error"
 
-
 def send_data(value):
     http = urllib3.PoolManager()
-    r = http.request('GET', 'http://10.16.29.212:1880/turnOn?value=' + str(value))
-
+    r = http.request('GET', 'http://10.16.29.212:1880/turnOn?value='+str(value))
 
 def display(word):
     grove_rgb_lcd.setText(word)
-    grove_rgb_lcd.setRGB(250, 128, 114)
+    grove_rgb_lcd.setRGB(250,128,114)
 
 
 def search_spot():
@@ -508,30 +514,28 @@ def search_spot():
         return 3
     return -1
 
-
-def set_in_servo():
+def set_in_servo(port):
     GPIO.setmode(GPIO.BCM)
-    GPIO.setup(07, GPIO.OUT)
-    p = GPIO.PWM(7, 50)
+    GPIO.setup(port, GPIO.OUT)
+    p = GPIO.PWM(port, 50)
     p.start(0)
-    GPIO.output(07, True)
+    GPIO.output(port, True)
     p.ChangeDutyCycle(5)
     time.sleep(0.235)
-    GPIO.output(07, False)
+    GPIO.output(port, False)
     p.ChangeDutyCycle(0)
     p.stop()
     GPIO.cleanup()
 
-
-def set_out_servo():
+def set_out_servo(port):
     GPIO.setmode(GPIO.BCM)
-    GPIO.setup(07, GPIO.OUT)
-    p = GPIO.PWM(7, 50)
+    GPIO.setup(port, GPIO.OUT)
+    p = GPIO.PWM(port, 50)
     p.start(0)
-    GPIO.output(07, True)
+    GPIO.output(port, True)
     p.ChangeDutyCycle(8)
     time.sleep(0.243)
-    GPIO.output(07, False)
+    GPIO.output(port, False)
     p.ChangeDutyCycle(0)
     p.stop()
     GPIO.cleanup()
@@ -539,13 +543,13 @@ def set_out_servo():
 
 def sendSMS(text):
     client = nexmo.Client(key='1ad97b4e', secret='jCtDbYq8ylyjeUzy')
-
+    
+    
     client.send_message({
-        'from': '12532387938',
-        'to': '12538837083',
-        'text': text,
+    'from': '12532387938',
+    'to': '12538837083',
+    'text': text,
     })
-
 
 # Create admin
 admin = flask_admin.Admin(
@@ -559,8 +563,7 @@ admin = flask_admin.Admin(
 admin.add_view(MyModelView(Role, db.session, menu_icon_type='fa', menu_icon_value='fa-server', name="Roles"))
 admin.add_view(UserView(User, db.session, menu_icon_type='fa', menu_icon_value='fa-users', name="Users"))
 admin.add_view(CustomView(name="Report", endpoint='custom', menu_icon_type='fa',
-                          menu_icon_value='fa-connectdevelop', ))
-
+                          menu_icon_value='fa-connectdevelop',))
 
 # define a context processor for merging flask-admin's template context into the
 # flask-security views.
@@ -572,8 +575,7 @@ def security_context_processor():
         h=admin_helpers,
         get_url=url_for
     )
-
-
+    
 @app.after_request
 def set_response_headers(response):
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
@@ -584,8 +586,13 @@ def set_response_headers(response):
 
 if __name__ == '__main__':
     p = Process(target=check_entrance_status)
-    # p = Process(target=f)
+    #p = Process(target=f)
     p.start()
-
-    app.run(host='0.0.0.0', debug=False)
+    
+    
+    
+    
+    
+    app.run(host='0.0.0.0',debug=False)
     # Build a sample db on the fly, if one does not exist yet.
+

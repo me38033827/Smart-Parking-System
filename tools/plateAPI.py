@@ -3,7 +3,7 @@ import base64
 import json
 
 # Sample image file is available at http://plates.openalpr.com/ea7the.jpg
-IMAGE_PATH = '../image/car2.jpeg'
+IMAGE_PATH = 'Fri May 31 17:52:43 2019.jpg'
 SECRET_KEY = 'sk_24c51607925c2471ba30d290'
 
 with open(IMAGE_PATH, 'rb') as image_file:

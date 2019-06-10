@@ -14,12 +14,13 @@
 
 
 
-var pathes=[[[438,390],[438,50],[98,50]],
-            [[438,390],[438,150],[98,150]],
-            [[438,390],[438,250],[98,250]],
-            [[438,390],[438,50],[578,50]],
+var pathes=[[[438,390],[438,250],[578,250]],
             [[438,390],[438,150],[578,150]],
-            [[438,390],[438,250],[578,250]]];
+            [[438,390],[438,50],[578,50]],
+            [[438,390],[438,50],[98,50]],
+            [[438,390],[438,150],[98,150]],
+            [[438,390],[438,250],[98,250]]
+            ];
 
 function drawLines(points) {
   var c = document.getElementById("myCanvas");
@@ -54,12 +55,6 @@ function drawPoint(point){
   ctx.fillRect(point[0],point[1],2,2);
 }
 
-show_Parking_Fee();
-show_Weather();
-show_Gas();
-show_parked_cars();
-show_car_status();
-show_record();
 
 
 
@@ -70,12 +65,34 @@ function show_Parking_Fee() {
         success: function(data, textStatus, request) {
             $("#parkingTime").html(data['time']+' Min');
             $("#totalPrice").html('$'+data['time']*0.01);
-            console.log(data);
+            
         }
     });
 }
 
 
+function initial_Weather(){
+    
+$.ajax({
+            url: '/weather',
+            type: 'GET',
+            success: function(data, textStatus, request) {
+            $("#temp").html(data["main"]["temp"] + "<sup>°F</sup>");
+            $("#weather").html(data["weather"][0]["main"]);
+            var d = new Date();
+            var n = d.getDay();
+            $("#date").html(d.toDateString());
+            $("#wind").html(data["wind"]["speed"] + "km/h");
+            d = new Date(data["sys"]["sunrise"] * 1000);
+            $("#sunrise").html(d.toTimeString());
+            $("#pressure").html(data["main"]["pressure"] + "hPa");
+            $("#weatherIcon").attr("src", "https://openweathermap.org/img/w/" + data["weather"][0]["icon"] + ".png");
+            
+            }
+        });
+
+
+}
 
 function show_Weather() {
     setInterval(function() {
@@ -93,10 +110,10 @@ function show_Weather() {
             $("#sunrise").html(d.toTimeString());
             $("#pressure").html(data["main"]["pressure"] + "hPa");
             $("#weatherIcon").attr("src", "https://openweathermap.org/img/w/" + data["weather"][0]["icon"] + ".png");
-            console.log(data);
+            
             }
         });
-			}, 3000);
+			}, 300000);
 
 }
 
@@ -108,7 +125,7 @@ function show_Gas() {
             $("#reg").html("Regular: " + data['details']['reg_price']);
             $("#mid").html("Mid-grade: " + data['details']['mid_price']);
             $("#pre").html("Premium: " + data['details']['pre_price']);
-            console.log(data);
+            
         }
     });
 }
@@ -123,9 +140,17 @@ function show_parked_cars(){
             success: function(data, textStatus, request) {
             var lots=data['status'];
             var lot = document.getElementById('parking-lot');
+            console.log(lots);
             for (var i = 0; i < lots.length; i++) {
                 if (lots[i]==1){
-                    lot.innerHTML += "<img src='/static/img/car.png' width='160' height='120' style='position: absolute; left:"+(25+475*Math.floor(i/3))+"px; top: "+(100*(i%3))+"px;' />";
+                    // lot.innerHTML += "<img src='/static/img/car.png' width='160' height='120' style='position: absolute; left:"+(25+475*Math.floor(i/3))+"px; top: "+(100*(i%3))+"px;' />";
+                    $('#spot'+(i+1)).removeAttr("hidden");
+                    console.log('#spot'+i);
+                    
+                }else{
+                    $('#spot'+(i+1)).attr("hidden",'hidden');
+                    
+                    
                 }
             };
             if(data['isIn']==1 && data['isParked']==0){
@@ -134,7 +159,7 @@ function show_parked_cars(){
             }
             }
         });
-			}, 2000);
+			}, 1000);
 
 }
 
@@ -147,23 +172,53 @@ function show_car_status() {
         url: '/carStatus',
         type: 'GET',
         success: function(data, textStatus, request) {
-            if (data['isIn']==1 && data['isParked']==0){
+            
+            var start=new Date(data['start_time']);
+            var span=(Date.now()-start)/1000
+            
+            if (data['status']==1 && data['spot_status']==0 && span<20){
                 drawLines(pathes[data['spot']-1]);
-            }else if (data['isIn']==1 && data['isParked']==1)
+            }else if (data['status']==1 && data['spot_status']==1)
             {
                 eraseLines();
-                var lot = document.getElementById('parking-lot');
-                var i=data['spot']-1;
-                lot.innerHTML += "<img src='/static/img/car.png' width='160' height='120' style='position: absolute; left:"+(25+475*Math.floor(i/3))+"px; top: "+(100*(i%3))+"px;' />";
-                console.log(data);
+                //var lot = document.getElementById('parking-lot');
+                //var i=data['spot']-1;
+                //lot.innerHTML += "<img src='/static/img/car.png' width='160' height='120' style='position: absolute; left:"+(25+475*Math.floor(i/3))+"px; top: "+(100*(i%3))+"px;' />";
+                
             }
 
         }
         });
 
-    },2000);
+    },1000);
 
 }
+
+
+
+
+
+function show_temp_humi() {
+
+    setInterval(function () {
+
+        $.ajax({
+        url: '/temperature',
+        type: 'GET',
+        success: function(data, textStatus, request) {
+            $("#Temp").html(data['temperature']+" <sup>°C</sup>");
+            $("#Humi").html(data['humidity']+" %");
+
+        }
+        });
+
+    },5000);
+
+}
+
+
+
+
 
 function show_record(){
 
@@ -171,7 +226,7 @@ function show_record(){
         url: '/history',
         type: 'GET',
         success: function(data, textStatus, request) {
-            console.log(data);
+            
 
             for (var i =0;i<Object.keys(data).length;i++){
 
@@ -194,8 +249,56 @@ function show_record(){
 }
 
 
-$(document).ready( function () {
+function show_account(){
+     
+     
+        
+    setInterval(function () {
+    $.ajax({
+        url: '/carStatus',
+        type: 'GET',
+        success: function(data, textStatus, request) {
+            
+            var start=new Date(data['start_time']);
+            var span=Math.floor((Date.now()-start)/(1000));
+            var fee=(span*data['rate']).toFixed(1);
+            var balance=data['balance'].toFixed(1);
+            
+            if (data['status']==1){
+                $("#parkingTime").html(span+"  seconds");
+                $("#balance").html(balance+'  dollars');
+                $("#totalPrice").html(fee+'  dollars');
+            }else{
+                $("#parkingTime").html("0  seconds");
+                $("#balance").html(balance+'  dollars');
+                $("#totalPrice").html('0  dollars');
+            
+            }
+            
+            
+            
 
+        }
+        });
+
+    },2000);
+
+
+
+}
+
+
+$(document).ready( function () {
+    
+show_Parking_Fee();
+//show_temp_humi();
+show_Weather();
+show_Gas();
+show_parked_cars();
+show_car_status();
+show_record();
+initial_Weather();
+show_account();
 
 
 } );
